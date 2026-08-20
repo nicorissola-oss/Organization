@@ -39,12 +39,24 @@
   h1{font-size:26px;line-height:1.15;margin:0;letter-spacing:-.02em}
   .sub{margin:6px 0 20px;color:var(--muted);font-size:13.5px;line-height:1.45}
 
+  button{touch-action:manipulation}
   .ghost-btn{
     background:transparent;color:var(--muted);border:1px solid var(--line);
-    border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;
-    cursor:pointer;white-space:nowrap;
+    border-radius:999px;padding:11px 18px;min-height:44px;font-size:14px;font-weight:600;
+    cursor:pointer;white-space:nowrap;font-family:inherit;
   }
   .ghost-btn:hover{color:var(--text)}
+  .ghost-btn:active{transform:scale(.97)}
+  #add{
+    width:100%;max-width:320px;font-size:15px;
+    border-style:dashed;border-width:1.5px;color:var(--text);
+  }
+  .warn{
+    display:none;margin:0 0 16px;padding:11px 13px;border-radius:12px;
+    background:rgba(224,69,63,.12);border:1px solid rgba(224,69,63,.45);
+    color:var(--text);font-size:12.5px;line-height:1.5;
+  }
+  .warn.show{display:block}
 
   #list{position:relative;display:flex;flex-direction:column;gap:12px}
 
@@ -85,7 +97,7 @@
 
   .tools{flex:0 0 auto;display:flex;align-items:center;gap:6px}
   .tool{
-    width:30px;height:26px;border:0;border-radius:8px;
+    width:34px;height:30px;border:0;border-radius:8px;
     background:rgba(255,255,255,.18);color:#fff;
     font-size:13px;line-height:1;cursor:pointer;
     display:flex;align-items:center;justify-content:center;
@@ -102,10 +114,13 @@
   }
   .block.open .palette{display:flex}
   .swatch{
-    width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.5);
+    width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.5);
     cursor:pointer;padding:0;
   }
   .swatch.current{box-shadow:0 0 0 3px rgba(255,255,255,.85)}
+
+  @keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+  .block.nuevo{animation:pop .28s ease-out}
 
   .footer{margin-top:26px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
   .tip{margin-top:18px;color:var(--muted);font-size:12.5px;text-align:center;line-height:1.5}
@@ -118,6 +133,8 @@
     <button class="ghost-btn" id="reset" type="button">Vaciar</button>
   </header>
   <p class="sub">Arriba lo que estudias primero. Arrastrá desde ⠿ o usá las flechas para reordenar.</p>
+
+  <p class="warn" id="warn"></p>
 
   <div id="list"></div>
 
@@ -164,8 +181,24 @@
     }
   }
 
+  var puedeGuardar = true;
+
   function save(){
-    try { localStorage.setItem(KEY, JSON.stringify(blocks)); } catch (e) {}
+    try {
+      localStorage.setItem(KEY, JSON.stringify(blocks));
+    } catch (e) {
+      if (puedeGuardar) { puedeGuardar = false; avisar(); }
+    }
+  }
+
+  function avisar(){
+    var warn = document.getElementById("warn");
+    warn.textContent = "Este visor no permite guardar los cambios. La app funciona, "
+      + "pero se borra al cerrarla: abrila directamente en el navegador del celular "
+      + "(Chrome o Safari) para que quede guardada.";
+    warn.className = "warn show";
+    var tip = document.querySelector(".tip");
+    if (tip) tip.style.display = "none";
   }
 
   function render(){
@@ -294,13 +327,23 @@
     var used = blocks.map(function(b){ return b.color; });
     var free = COLORS.filter(function(c){ return used.indexOf(c) < 0; })[0];
     blocks.push({
-      id: "b" + Date.now(),
+      id: "b" + Date.now() + "-" + blocks.length,
       name: "",
       subject: "",
       color: free || COLORS[blocks.length % COLORS.length]
     });
     save();
     render();
+
+    // El bloque nuevo queda al final: lo mostramos y le damos foco para que
+    // se note que se agrego aunque el boton estuviera al pie de la pantalla.
+    var el = list.lastElementChild;
+    if (!el) return;
+    el.classList.add("nuevo");
+    try { el.scrollIntoView({ block: "center", behavior: "smooth" }); }
+    catch (e) { el.scrollIntoView(false); }
+    var input = el.querySelector("input.name");
+    if (input) input.focus();
   }
 
   /* --- arrastrar y soltar (mouse y touch) --- */
@@ -379,6 +422,14 @@
     save();
     render();
   });
+
+  try {
+    localStorage.setItem(KEY + ".test", "1");
+    localStorage.removeItem(KEY + ".test");
+  } catch (e) {
+    puedeGuardar = false;
+    avisar();
+  }
 
   blocks = load();
   render();

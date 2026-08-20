@@ -22,6 +22,30 @@ colores, una arriba de otra: la de arriba es lo primero que hacés hoy.
   "Vaciar" vuelve a las 5 tarjetas iniciales.
 - Todo se guarda automáticamente en el navegador del dispositivo.
 
+### Instalarla como app (y que no se borre)
+
+Los datos viven en el navegador que abre la app, así que hay que abrirla
+siempre desde la misma dirección. Un visor de archivos o una vista embebida
+no sirven: ahí no hay dónde guardar.
+
+1. Publicá el repo con **GitHub Pages**: en GitHub, Settings → Pages → Source:
+   *Deploy from a branch* → rama `main`, carpeta `/ (root)` → Save. En un
+   minuto queda en `https://nicorissola-oss.github.io/Organization/`.
+2. Abrí esa dirección en el celular con Chrome o Safari.
+3. Instalala:
+   - **Android (Chrome)**: menú ⋮ → *Instalar app* / *Añadir a pantalla principal*.
+   - **iPhone (Safari)**: botón Compartir → *Añadir a pantalla de inicio*.
+
+Queda con ícono propio, se abre a pantalla completa, anda sin internet (un
+service worker guarda los archivos) y lo que escribís se conserva entre
+sesiones.
+
+### Copia de seguridad
+
+"Guardar copia" baja un `prioridades-AAAA-MM-DD.json` con todo; "Abrir copia"
+lo restaura. Sirve para pasar los datos a otro teléfono o para no depender
+solo del navegador.
+
 ### Cómo usarla
 
 Abrí `index.html` en cualquier navegador (celular o computadora). No necesita

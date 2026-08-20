@@ -15,6 +15,12 @@ colores, una arriba de otra: la de arriba es lo primero que hacés hoy.
   con un hueco adentro: le ponés "Fin de semana" y arrastrás ahí todo lo que
   entra en ese rato. Se mueve entero, con lo que tenga adentro, y si lo borrás
   las tarjetas de adentro no se pierden: suben al nivel principal.
+- **Fecha límite**: el botón 🗓 abre un selector de fecha. Cuando falta, la
+  tarjeta muestra "Vence el …" o "Vence hoy"; si la fecha ya pasó, la tarjeta
+  se pinta de rojo y avisa "⚠ Venció el …". Se revisa sola al volver a la app
+  y al pasar la medianoche.
+- **Al eliminar**: la tarea se tacha, aparece un sello verde **DONE** con un
+  tilde y recién ahí la tarjeta se pliega y desaparece.
 - **Colores**: el botón ● abre la paleta. Dos tarjetas con el mismo título
   pueden compartir color; si los títulos son distintos, los colores se
   intercambian para que no se confundan.

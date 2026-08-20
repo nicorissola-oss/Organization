@@ -1,6 +1,6 @@
 /* Guarda la app en el telefono para que abra sin internet.
    Al cambiar los archivos, subir CACHE de version. */
-var CACHE = "prioridades-v1";
+var CACHE = "prioridades-v2";
 var ARCHIVOS = [
   "./",
   "./index.html",

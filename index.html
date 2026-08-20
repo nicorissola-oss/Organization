@@ -7,22 +7,31 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Prioridades</title>
 <style>
+  /* Tema claro por defecto; el oscuro se aplica por preferencia del sistema
+     o cuando el visor marca data-theme en la raiz. */
   :root{
+    --bg:#f4f5fa;
+    --bg-soft:#ffffff;
+    --text:#14162a;
+    --muted:#6b7192;
+    --line:rgba(20,22,42,.12);
+    --radius:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1220;
+      --bg-soft:#171a2e;
+      --text:#f2f3f8;
+      --muted:#9aa0bd;
+      --line:rgba(255,255,255,.14);
+    }
+  }
+  :root[data-theme="dark"]{
     --bg:#0f1220;
     --bg-soft:#171a2e;
     --text:#f2f3f8;
     --muted:#9aa0bd;
     --line:rgba(255,255,255,.14);
-    --radius:16px;
-  }
-  @media (prefers-color-scheme: light){
-    :root{
-      --bg:#f4f5fa;
-      --bg-soft:#ffffff;
-      --text:#14162a;
-      --muted:#6b7192;
-      --line:rgba(20,22,42,.12);
-    }
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
@@ -83,7 +92,7 @@
     flex:0 0 auto;width:26px;height:26px;border-radius:9px;
     background:rgba(255,255,255,.2);
     display:flex;align-items:center;justify-content:center;
-    font-size:13px;font-weight:800;
+    font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;
   }
 
   .block input{
@@ -103,6 +112,9 @@
     display:flex;align-items:center;justify-content:center;
   }
   .tool:hover{background:rgba(255,255,255,.3)}
+  .tool:focus-visible,.swatch:focus-visible,.ghost-btn:focus-visible{
+    outline:2px solid currentColor;outline-offset:2px;
+  }
   .tool[disabled]{opacity:.3;cursor:default}
   .handle{cursor:grab;touch-action:none}
   .handle:active{cursor:grabbing}
@@ -121,6 +133,11 @@
 
   @keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
   .block.nuevo{animation:pop .28s ease-out}
+
+  @media (prefers-reduced-motion: reduce){
+    .block.nuevo{animation:none}
+    .block.settling{transition:none}
+  }
 
   .footer{margin-top:26px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
   .tip{margin-top:18px;color:var(--muted);font-size:12.5px;text-align:center;line-height:1.5}

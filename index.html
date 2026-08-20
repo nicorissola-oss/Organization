@@ -523,7 +523,7 @@
     p.className = "plazo" + (tarde ? " tarde" : "");
     p.textContent = tarde
       ? "⚠ Expired · " + formatoFecha(node.due)
-      : (hoy ? "Due today" : "Due to " + formatoFecha(node.due));
+      : (hoy ? "Due today" : "Due " + formatoFecha(node.due));
     return p;
   }
 

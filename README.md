@@ -46,6 +46,10 @@ Queda con ícono propio, se abre a pantalla completa, anda sin internet (un
 service worker guarda los archivos) y lo que escribís se conserva entre
 sesiones.
 
+Al abrir, la pantalla se pide primero a la red, así una versión nueva se ve
+enseguida; si no hay señal o tarda más de tres segundos, sale la copia
+guardada. Cuando entra una versión nueva, la app se rehace sola una vez.
+
 ### Copia de seguridad
 
 "Guardar copia" baja un `prioridades-AAAA-MM-DD.json` con todo; "Abrir copia"

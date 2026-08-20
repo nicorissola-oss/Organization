@@ -917,8 +917,21 @@
 
   // Instalable y offline: solo corre servida por http(s), no como archivo suelto.
   if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+    var teniaControlador = !!navigator.serviceWorker.controller;
+    var recargando = false;
+
+    // Cuando entra una version nueva, la pantalla se rehace sola una vez
+    // para no quedar mostrando la anterior.
+    navigator.serviceWorker.addEventListener("controllerchange", function(){
+      if (!teniaControlador || recargando) return;
+      recargando = true;
+      location.reload();
+    });
+
     window.addEventListener("load", function(){
-      navigator.serviceWorker.register("sw.js").catch(function(){});
+      navigator.serviceWorker.register("sw.js").then(function(reg){
+        reg.update();
+      }).catch(function(){});
     });
   }
 })();

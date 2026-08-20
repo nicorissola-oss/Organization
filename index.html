@@ -85,7 +85,7 @@
     box-shadow:0 6px 18px rgba(0,0,0,.18);
     touch-action:pan-y;
   }
-  .row{display:flex;align-items:center;gap:10px;min-width:0}
+  .row{position:relative;display:flex;align-items:center;gap:10px;min-width:0}
 
   .block.dragging{
     z-index:50;pointer-events:none;
@@ -125,6 +125,7 @@
   .tool:focus-visible,.swatch:focus-visible,.ghost-btn:focus-visible{
     outline:2px solid currentColor;outline-offset:2px;
   }
+  .tool svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
   .handle{cursor:grab;touch-action:none}
   .handle:active{cursor:grabbing}
 
@@ -152,17 +153,77 @@
     padding:10px 4px 2px;margin-top:6px;
     border-top:1px solid rgba(255,255,255,.25);
   }
-  .block.open > .palette{display:flex}
+  .block.open-color > .palette{display:flex}
   .swatch{
     width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.5);
     cursor:pointer;padding:0;
   }
   .swatch.current{box-shadow:0 0 0 3px rgba(255,255,255,.85)}
 
+  /* Fecha limite */
+  .fechas{
+    display:none;gap:8px;align-items:center;flex-wrap:wrap;
+    padding:10px 4px 2px;margin-top:6px;
+    border-top:1px solid rgba(255,255,255,.25);
+  }
+  .block.open-fecha > .fechas{display:flex}
+  .fechas input[type="date"]{
+    flex:1 1 150px;min-width:140px;width:auto;
+    background:rgba(255,255,255,.18);color:#fff;
+    border:0;border-radius:8px;padding:8px 10px;min-height:38px;
+    font-family:inherit;font-size:14px;
+  }
+  .fechas input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.9}
+  .ancho{width:auto;padding:0 12px;height:38px;font-size:13px;font-weight:600}
+
+  .plazo{
+    display:flex;align-items:center;gap:6px;
+    margin-top:-2px;font-size:12.5px;opacity:.92;
+  }
+  .plazo.tarde{font-weight:700;opacity:1}
+
+  /* Al eliminar: se tacha, aparece DONE y recien ahi desaparece */
+  .block.cerrando{pointer-events:none}
+  .tachon{
+    position:absolute;height:3px;margin-top:-1px;border-radius:2px;background:#fff;
+    transform:scaleX(0);transform-origin:left center;
+    animation:tachar .38s ease-out forwards;
+  }
+  @keyframes tachar{to{transform:scaleX(1)}}
+  .sello{
+    position:absolute;inset:0;z-index:2;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.3);border-radius:var(--radius);
+    animation:aparecer .3s ease-out .35s both;
+  }
+  .sello .pastilla{
+    display:flex;align-items:center;gap:8px;
+    background:#fff;color:#12813f;
+    padding:9px 16px;border-radius:999px;
+    font-size:16px;font-weight:800;letter-spacing:.08em;
+    box-shadow:0 6px 16px rgba(0,0,0,.3);
+    animation:sellar .32s cubic-bezier(.2,1.4,.4,1) .35s both;
+  }
+  .sello svg{width:20px;height:20px}
+  .sello svg path{
+    fill:none;stroke:currentColor;stroke-width:3.2;
+    stroke-linecap:round;stroke-linejoin:round;
+    stroke-dasharray:32;stroke-dashoffset:32;
+    animation:tildar .34s ease-out .55s forwards;
+  }
+  @keyframes aparecer{from{opacity:0}to{opacity:1}}
+  @keyframes sellar{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+  @keyframes tildar{to{stroke-dashoffset:0}}
+  .block.colapsando{
+    overflow:hidden;padding-top:0;padding-bottom:0;
+    transition:height .28s ease, opacity .28s ease, padding .28s ease, margin .28s ease;
+  }
+
   @keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
   .block.nuevo{animation:pop .28s ease-out}
   @media (prefers-reduced-motion: reduce){
     .block.nuevo{animation:none}
+    .tachon,.sello,.sello .pastilla,.sello svg path{animation-duration:.01ms}
   }
 
   .footer{margin-top:26px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
@@ -203,6 +264,10 @@
     "#e0453f", "#e8792c", "#e3b31c", "#3aa657",
     "#2f8fd6", "#6a5ae0", "#c14bb0", "#4b5566"
   ];
+  var ROJO_VENCIDA = "#b3261e";   // solo para tarjetas con la fecha pasada
+  var ICONO_FECHA = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+    + '<rect x="3.5" y="5.5" width="17" height="15" rx="2.5"></rect>'
+    + '<path d="M8 3.2v4.6M16 3.2v4.6M3.5 10.6h17"></path></svg>';
   var KEY = "prioridades.v2";
   var KEY_V1 = "prioridades.v1";
   var list = document.getElementById("list");
@@ -216,8 +281,32 @@
   }
 
   function nodo(kind, color){
-    return { id: nuevoId(), kind: kind, name: "", subject: "", color: color,
+    return { id: nuevoId(), kind: kind, name: "", subject: "", color: color, due: "",
              children: kind === "group" ? [] : undefined };
+  }
+
+  /* --- fechas limite --- */
+
+  function hoyISO(){
+    var d = new Date();
+    return d.getFullYear() + "-"
+      + ("0" + (d.getMonth() + 1)).slice(-2) + "-"
+      + ("0" + d.getDate()).slice(-2);
+  }
+
+  function vencida(node){
+    return !!node.due && node.due < hoyISO();
+  }
+
+  function formatoFecha(iso){
+    var p = iso.split("-");
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    try {
+      // En ingles, a tono con las etiquetas Due to / Expired.
+      return d.toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" });
+    } catch (e) {
+      return p[1] + "/" + p[2];
+    }
   }
 
   function defaults(){
@@ -238,7 +327,8 @@
         kind: kind,
         name: String(b.name || ""),
         subject: String(b.subject || ""),
-        color: COLORS.indexOf(b.color) >= 0 ? b.color : COLORS[i % COLORS.length]
+        color: COLORS.indexOf(b.color) >= 0 ? b.color : COLORS[i % COLORS.length],
+        due: /^\d{4}-\d{2}-\d{2}$/.test(b.due) ? b.due : ""
       };
       // Los grupos no anidan grupos: un nivel alcanza y se lee mejor.
       if (kind === "group") n.children = sanear(b.children, false);
@@ -316,16 +406,31 @@
 
   /* --- dibujo --- */
 
+  var estadoPlazos = "";
+
   function render(){
     list.innerHTML = "";
     items.forEach(function(node, i){ list.appendChild(nodeEl(node, i)); });
+    estadoPlazos = firmaPlazos();
+  }
+
+  function firmaPlazos(){
+    return todos().map(function(n){ return n.id + (vencida(n) ? "!" : ""); }).join(",");
+  }
+
+  // Una tarjeta puede vencer con la app abierta (pasa la medianoche): la
+  // repintamos cuando cambia algo, nunca en medio de un arrastre.
+  function revisarPlazos(){
+    if (drag) return;
+    if (firmaPlazos() !== estadoPlazos) render();
   }
 
   function nodeEl(node, index){
     var esGrupo = node.kind === "group";
     var el = document.createElement("div");
-    el.className = "block" + (esGrupo ? " group" : "");
-    el.style.background = node.color;
+    el.className = "block" + (esGrupo ? " group" : "") + (vencida(node) ? " vencida" : "");
+    // La tarjeta con la fecha pasada se pinta de rojo hasta que la resuelvas.
+    el.style.background = vencida(node) ? ROJO_VENCIDA : node.color;
     el.dataset.id = node.id;
 
     var top = document.createElement("div");
@@ -344,8 +449,15 @@
       esGrupo ? "Cuándo (ej. sábado y domingo)" : "Tarea (ej. 1 hora de estudio)", node));
     var tools = document.createElement("div");
     tools.className = "tools";
+    tools.appendChild(tool(ICONO_FECHA, "Fecha límite", "", function(){
+      el.classList.remove("open-color");
+      el.classList.toggle("open-fecha");
+      var f = el.querySelector(":scope > .fechas > input");
+      if (f && el.classList.contains("open-fecha")) f.focus();
+    }));
     tools.appendChild(tool("●", "Cambiar color", "", function(){
-      el.classList.toggle("open");
+      el.classList.remove("open-fecha");
+      el.classList.toggle("open-color");
     }));
     tools.appendChild(tool("✕", esGrupo ? "Eliminar grupo" : "Eliminar tarjeta", "",
       function(){ remove(node.id); }, todos().length <= 1));
@@ -353,6 +465,8 @@
 
     el.appendChild(top);
     el.appendChild(bottom);
+    if (node.due) el.appendChild(plazoEl(node));
+    el.appendChild(fechaEl(node));
     el.appendChild(paletteEl(node));
 
     if (esGrupo) {
@@ -394,12 +508,53 @@
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "tool " + extra;
-    btn.textContent = label;
+    if (label.charAt(0) === "<") btn.innerHTML = label; else btn.textContent = label;
     btn.title = title;
     btn.setAttribute("aria-label", title);
     if (disabled) btn.disabled = true;
     if (onClick) btn.addEventListener("click", onClick);
     return btn;
+  }
+
+  function plazoEl(node){
+    var p = document.createElement("div");
+    var tarde = vencida(node);
+    var hoy = node.due === hoyISO();
+    p.className = "plazo" + (tarde ? " tarde" : "");
+    p.textContent = tarde
+      ? "⚠ Expired · " + formatoFecha(node.due)
+      : (hoy ? "Due today" : "Due " + formatoFecha(node.due));
+    return p;
+  }
+
+  function fechaEl(node){
+    var caja = document.createElement("div");
+    caja.className = "fechas";
+
+    var input = document.createElement("input");
+    input.type = "date";
+    input.value = node.due || "";
+    input.setAttribute("aria-label", "Fecha límite");
+    input.addEventListener("change", function(){
+      node.due = /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : "";
+      save();
+      render();
+    });
+    caja.appendChild(input);
+
+    if (node.due) {
+      var quitar = document.createElement("button");
+      quitar.type = "button";
+      quitar.className = "tool ancho";
+      quitar.textContent = "Quitar";
+      quitar.addEventListener("click", function(){
+        node.due = "";
+        save();
+        render();
+      });
+      caja.appendChild(quitar);
+    }
+    return caja;
   }
 
   function paletteEl(node){
@@ -444,6 +599,59 @@
 
   function remove(id){
     if (todos().length <= 1) return;
+    var el = document.querySelector('.block[data-id="' + id + '"]');
+    var sinMovimiento = window.matchMedia
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!el || sinMovimiento) { borrarDelModelo(id); return; }
+    if (el.classList.contains("cerrando")) return;   // ya esta en camino
+    el.classList.add("cerrando");
+
+    // 1) se tacha cada campo, como cuando marcás algo hecho en papel
+    Array.prototype.forEach.call(el.children, function(row){
+      if (!row.classList.contains("row")) return;
+      var input = row.querySelector("input");
+      if (!input) return;
+      var ancho = anchoDelTexto(input);
+      if (!ancho) return;                 // campo vacio: no hay nada que tachar
+      var linea = document.createElement("span");
+      linea.className = "tachon";
+      linea.style.left = input.offsetLeft + "px";
+      linea.style.top = (input.offsetTop + input.offsetHeight / 2) + "px";
+      linea.style.width = ancho + "px";
+      row.appendChild(linea);
+    });
+
+    // 2) el sello DONE con el tilde
+    var sello = document.createElement("div");
+    sello.className = "sello";
+    sello.innerHTML = '<div class="pastilla">'
+      + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5.2 5.2L20 6.8"/></svg>'
+      + '<span>DONE</span></div>';
+    el.appendChild(sello);
+
+    // 3) recien despues se pliega y desaparece
+    setTimeout(function(){
+      el.style.height = el.getBoundingClientRect().height + "px";
+      el.classList.add("colapsando");
+      void el.offsetHeight;
+      el.style.height = "0px";
+      el.style.opacity = "0";
+      el.style.marginTop = "-12px";
+      setTimeout(function(){ borrarDelModelo(id); }, 300);
+    }, 1050);
+  }
+
+  function anchoDelTexto(input){
+    if (!input.value) return 0;
+    var cs = getComputedStyle(input);
+    var canvas = anchoDelTexto.canvas || (anchoDelTexto.canvas = document.createElement("canvas"));
+    var ctx = canvas.getContext("2d");
+    ctx.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+    return Math.min(Math.ceil(ctx.measureText(input.value).width) + 4, input.offsetWidth);
+  }
+
+  function borrarDelModelo(id){
     var node = buscar(id);
     if (!node) return;
     var cont = contenedorDe(id);
@@ -701,6 +909,11 @@
 
   items = load();
   render();
+
+  setInterval(revisarPlazos, 60000);
+  document.addEventListener("visibilitychange", function(){
+    if (!document.hidden) revisarPlazos();
+  });
 
   // Instalable y offline: solo corre servida por http(s), no como archivo suelto.
   if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {

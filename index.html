@@ -302,9 +302,10 @@
     var p = iso.split("-");
     var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
     try {
-      return d.toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" });
+      // En ingles, a tono con las etiquetas Due to / Expired.
+      return d.toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" });
     } catch (e) {
-      return p[2] + "/" + p[1];
+      return p[1] + "/" + p[2];
     }
   }
 
@@ -521,8 +522,8 @@
     var hoy = node.due === hoyISO();
     p.className = "plazo" + (tarde ? " tarde" : "");
     p.textContent = tarde
-      ? "⚠ Venció el " + formatoFecha(node.due)
-      : (hoy ? "Vence hoy" : "Vence el " + formatoFecha(node.due));
+      ? "⚠ Expired · " + formatoFecha(node.due)
+      : (hoy ? "Due today" : "Due to " + formatoFecha(node.due));
     return p;
   }
 

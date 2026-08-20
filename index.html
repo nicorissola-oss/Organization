@@ -33,6 +33,7 @@
     --muted:#9aa0bd;
     --line:rgba(255,255,255,.14);
   }
+
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
   body{
@@ -42,7 +43,7 @@
     min-height:100dvh;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  .wrap{max-width:560px;margin:0 auto;padding:22px 16px 48px}
+  .wrap{max-width:560px;margin:0 auto;padding:22px 16px 64px}
 
   header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:6px}
   h1{font-size:26px;line-height:1.15;margin:0;letter-spacing:-.02em}
@@ -56,9 +57,9 @@
   }
   .ghost-btn:hover{color:var(--text)}
   .ghost-btn:active{transform:scale(.97)}
-  #add{
-    width:100%;max-width:320px;font-size:15px;
-    border-style:dashed;border-width:1.5px;color:var(--text);
+  .add-btn{
+    flex:1 1 0;min-width:130px;max-width:230px;color:var(--text);
+    border-style:dashed;border-width:1.5px;font-size:15px;
   }
   .warn{
     display:none;margin:0 0 16px;padding:11px 13px;border-radius:12px;
@@ -67,7 +68,7 @@
   }
   .warn.show{display:block}
 
-  #list{position:relative;display:flex;flex-direction:column;gap:12px}
+  #list{position:relative;display:flex;flex-direction:column;gap:12px;min-height:60px}
 
   .block{
     position:relative;
@@ -77,16 +78,19 @@
     color:#fff;
     box-shadow:0 6px 18px rgba(0,0,0,.18);
     touch-action:pan-y;
-    will-change:transform;
   }
   .row{display:flex;align-items:center;gap:10px;min-width:0}
+
   .block.dragging{
-    z-index:20;
-    box-shadow:0 16px 34px rgba(0,0,0,.35);
-    transform:scale(1.02);
-    cursor:grabbing;
+    z-index:50;pointer-events:none;
+    box-shadow:0 18px 38px rgba(0,0,0,.4);
+    opacity:.96;
   }
-  .block.settling{transition:transform .18s ease}
+  .placeholder{
+    border-radius:var(--radius);
+    border:2px dashed rgba(127,133,166,.7);
+    background:rgba(127,133,166,.12);
+  }
 
   .rank{
     flex:0 0 auto;width:26px;height:26px;border-radius:9px;
@@ -115,16 +119,34 @@
   .tool:focus-visible,.swatch:focus-visible,.ghost-btn:focus-visible{
     outline:2px solid currentColor;outline-offset:2px;
   }
-  .tool[disabled]{opacity:.3;cursor:default}
   .handle{cursor:grab;touch-action:none}
   .handle:active{cursor:grabbing}
 
+  /* Grupo: tarjeta con un hueco adentro, al estilo de los bloques en C
+     de Scratch. El color queda como marco y las tarjetas de adentro
+     conservan el suyo. */
+  .group{padding-bottom:10px}
+  .slot{
+    display:flex;flex-direction:column;gap:10px;
+    margin:2px 4px 0 14px;padding:10px;
+    border-radius:12px;
+    background:rgba(0,0,0,.2);
+    min-height:56px;
+  }
+  .slot .block{box-shadow:0 4px 12px rgba(0,0,0,.22)}
+  .hint{
+    margin:0;padding:8px 4px;text-align:center;
+    color:rgba(255,255,255,.75);font-size:12.5px;
+  }
+  .slot:has(.placeholder) .hint{display:none}
+  .slot.hover{outline:2px dashed rgba(255,255,255,.7);outline-offset:2px}
+
   .palette{
     display:none;gap:8px;flex-wrap:wrap;
-    padding:10px 4px 2px;margin-top:10px;
+    padding:10px 4px 2px;margin-top:6px;
     border-top:1px solid rgba(255,255,255,.25);
   }
-  .block.open .palette{display:flex}
+  .block.open > .palette{display:flex}
   .swatch{
     width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.5);
     cursor:pointer;padding:0;
@@ -133,10 +155,8 @@
 
   @keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
   .block.nuevo{animation:pop .28s ease-out}
-
   @media (prefers-reduced-motion: reduce){
     .block.nuevo{animation:none}
-    .block.settling{transition:none}
   }
 
   .footer{margin-top:26px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
@@ -149,14 +169,15 @@
     <h1>Prioridades</h1>
     <button class="ghost-btn" id="reset" type="button">Vaciar</button>
   </header>
-  <p class="sub">Arriba lo que estudias primero. Arrastrá desde ⠿ o usá las flechas para reordenar.</p>
+  <p class="sub">Arriba lo que estudias primero. Arrastrá desde ⠿ para ordenar, o soltá una tarjeta dentro de un grupo.</p>
 
   <p class="warn" id="warn"></p>
 
   <div id="list"></div>
 
   <div class="footer">
-    <button class="ghost-btn" id="add" type="button">+ Agregar bloque</button>
+    <button class="ghost-btn add-btn" id="add" type="button">+ Tarjeta</button>
+    <button class="ghost-btn add-btn" id="addGroup" type="button">+ Grupo</button>
   </div>
   <p class="tip">Se guarda solo en este dispositivo.</p>
 </div>
@@ -169,40 +190,69 @@
     "#e0453f", "#e8792c", "#e3b31c", "#3aa657",
     "#2f8fd6", "#6a5ae0", "#c14bb0", "#4b5566"
   ];
-  var KEY = "prioridades.v1";
+  var KEY = "prioridades.v2";
+  var KEY_V1 = "prioridades.v1";
   var list = document.getElementById("list");
-  var blocks = [];
+  var items = [];
+  var puedeGuardar = true;
+
+  /* --- datos --- */
+
+  function nuevoId(){
+    return "n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function nodo(kind, color){
+    return { id: nuevoId(), kind: kind, name: "", subject: "", color: color,
+             children: kind === "group" ? [] : undefined };
+  }
 
   function defaults(){
-    return COLORS.slice(0, 5).map(function(color, i){
-      return { id: "b" + Date.now() + i, name: "", subject: "", color: color };
+    return COLORS.slice(0, 5).map(function(color){
+      var n = nodo("block", color);
+      return n;
     });
+  }
+
+  function sanear(raw, esRaiz){
+    if (!Array.isArray(raw)) return [];
+    var out = [];
+    raw.forEach(function(b, i){
+      if (!b || typeof b !== "object") return;
+      var kind = (b.kind === "group" && esRaiz) ? "group" : "block";
+      var n = {
+        id: String(b.id || nuevoId()),
+        kind: kind,
+        name: String(b.name || ""),
+        subject: String(b.subject || ""),
+        color: COLORS.indexOf(b.color) >= 0 ? b.color : COLORS[i % COLORS.length]
+      };
+      // Los grupos no anidan grupos: un nivel alcanza y se lee mejor.
+      if (kind === "group") n.children = sanear(b.children, false);
+      out.push(n);
+    });
+    return out;
   }
 
   function load(){
     try {
       var raw = localStorage.getItem(KEY);
-      if (!raw) return defaults();
-      var data = JSON.parse(raw);
-      if (!Array.isArray(data) || !data.length) return defaults();
-      return data.map(function(b, i){
-        return {
-          id: String(b.id || ("b" + i)),
-          name: String(b.name || ""),
-          subject: String(b.subject || ""),
-          color: COLORS.indexOf(b.color) >= 0 ? b.color : COLORS[i % COLORS.length]
-        };
-      });
-    } catch (e) {
-      return defaults();
-    }
+      if (raw) {
+        var data = sanear(JSON.parse(raw), true);
+        if (data.length) return data;
+      }
+      var viejo = localStorage.getItem(KEY_V1);   // datos de la version sin grupos
+      if (viejo) {
+        var previo = sanear(JSON.parse(viejo), true);
+        if (previo.length) return previo;
+      }
+    } catch (e) {}
+    return defaults();
   }
-
-  var puedeGuardar = true;
 
   function save(){
     try {
-      localStorage.setItem(KEY, JSON.stringify(blocks));
+      localStorage.setItem(KEY, JSON.stringify(items));
     } catch (e) {
       if (puedeGuardar) { puedeGuardar = false; avisar(); }
     }
@@ -218,18 +268,52 @@
     if (tip) tip.style.display = "none";
   }
 
-  function render(){
-    list.innerHTML = "";
-    blocks.forEach(function(block, index){
-      list.appendChild(blockEl(block, index));
+  function todos(){
+    var out = [];
+    items.forEach(function(n){
+      out.push(n);
+      if (n.children) n.children.forEach(function(c){ out.push(c); });
     });
+    return out;
   }
 
-  function blockEl(block, index){
+  function buscar(id){
+    var found = null;
+    todos().forEach(function(n){ if (n.id === id) found = n; });
+    return found;
+  }
+
+  function contenedorDe(id){
+    var cont = null;
+    if (items.some(function(n){ return n.id === id; })) return items;
+    items.forEach(function(n){
+      if (n.children && n.children.some(function(c){ return c.id === id; })) cont = n.children;
+    });
+    return cont;
+  }
+
+  function sacar(id){
+    var cont = contenedorDe(id);
+    if (!cont) return null;
+    for (var i = 0; i < cont.length; i++) {
+      if (cont[i].id === id) return cont.splice(i, 1)[0];
+    }
+    return null;
+  }
+
+  /* --- dibujo --- */
+
+  function render(){
+    list.innerHTML = "";
+    items.forEach(function(node, i){ list.appendChild(nodeEl(node, i)); });
+  }
+
+  function nodeEl(node, index){
+    var esGrupo = node.kind === "group";
     var el = document.createElement("div");
-    el.className = "block";
-    el.style.background = block.color;
-    el.dataset.id = block.id;
+    el.className = "block" + (esGrupo ? " group" : "");
+    el.style.background = node.color;
+    el.dataset.id = node.id;
 
     var top = document.createElement("div");
     top.className = "row";
@@ -237,40 +321,57 @@
     rank.className = "rank";
     rank.textContent = String(index + 1);
     top.appendChild(rank);
-    top.appendChild(field("name", "Materia (ej. Historia)", block.name, block));
-    top.appendChild(tool("\u283f", "Arrastrar para reordenar", "handle", null));
+    top.appendChild(field("name",
+      esGrupo ? "Grupo (ej. Fin de semana)" : "Materia (ej. Historia)", node));
+    top.appendChild(tool("⠿", "Arrastrar para ordenar", "handle", null));
 
     var bottom = document.createElement("div");
     bottom.className = "row";
-    bottom.appendChild(field("subject", "Tarea (ej. 1 hora de estudio)", block.subject, block));
+    bottom.appendChild(field("subject",
+      esGrupo ? "Cuándo (ej. sábado y domingo)" : "Tarea (ej. 1 hora de estudio)", node));
     var tools = document.createElement("div");
     tools.className = "tools";
-    tools.appendChild(tool("\u25b2", "Subir", "", function(){ move(block.id, -1); }, index === 0));
-    tools.appendChild(tool("\u25bc", "Bajar", "", function(){ move(block.id, 1); }, index === blocks.length - 1));
-    tools.appendChild(tool("\u25cf", "Cambiar color", "", function(){ el.classList.toggle("open"); }));
-    tools.appendChild(tool("\u2715", "Eliminar bloque", "", function(){ remove(block.id); }, blocks.length <= 1));
+    tools.appendChild(tool("●", "Cambiar color", "", function(){
+      el.classList.toggle("open");
+    }));
+    tools.appendChild(tool("✕", esGrupo ? "Eliminar grupo" : "Eliminar tarjeta", "",
+      function(){ remove(node.id); }, todos().length <= 1));
     bottom.appendChild(tools);
 
     el.appendChild(top);
     el.appendChild(bottom);
-    el.appendChild(paletteEl(block));
+    el.appendChild(paletteEl(node));
+
+    if (esGrupo) {
+      var slot = document.createElement("div");
+      slot.className = "slot";
+      slot.dataset.groupId = node.id;
+      if (!node.children.length) {
+        var hint = document.createElement("p");
+        hint.className = "hint";
+        hint.textContent = "Arrastrá tarjetas acá";
+        slot.appendChild(hint);
+      }
+      node.children.forEach(function(child, i){ slot.appendChild(nodeEl(child, i)); });
+      el.appendChild(slot);
+    }
 
     el.querySelector(".handle").addEventListener("pointerdown", function(ev){
-      startDrag(ev, el);
+      startDrag(ev, el, node);
     });
 
     return el;
   }
 
-  function field(key, placeholder, value, block){
+  function field(key, placeholder, node){
     var input = document.createElement("input");
     input.type = "text";
     input.className = key;
     input.placeholder = placeholder;
-    input.value = value;
-    input.setAttribute("aria-label", key === "name" ? "Materia" : "Tarea");
+    input.value = node[key];
+    input.setAttribute("aria-label", placeholder);
     input.addEventListener("input", function(){
-      block[key] = input.value;
+      node[key] = input.value;
       save();
     });
     return input;
@@ -288,19 +389,17 @@
     return btn;
   }
 
-  function paletteEl(block){
+  function paletteEl(node){
     var pal = document.createElement("div");
     pal.className = "palette";
     COLORS.forEach(function(color){
       var sw = document.createElement("button");
       sw.type = "button";
-      sw.className = "swatch" + (color === block.color ? " current" : "");
+      sw.className = "swatch" + (color === node.color ? " current" : "");
       sw.style.background = color;
       sw.title = "Usar este color";
       sw.setAttribute("aria-label", "Usar color " + color);
-      sw.addEventListener("click", function(){
-        setColor(block.id, color);
-      });
+      sw.addEventListener("click", function(){ setColor(node.id, color); });
       pal.appendChild(sw);
     });
     return pal;
@@ -308,52 +407,59 @@
 
   /* --- acciones --- */
 
-  function indexOf(id){
-    for (var i = 0; i < blocks.length; i++) if (blocks[i].id === id) return i;
-    return -1;
-  }
-
-  function move(id, delta){
-    var from = indexOf(id);
-    var to = from + delta;
-    if (from < 0 || to < 0 || to >= blocks.length) return;
-    blocks.splice(to, 0, blocks.splice(from, 1)[0]);
-    save();
-    render();
+  function mismoTitulo(a, b){
+    var x = (a.name || "").trim().toLowerCase();
+    var y = (b.name || "").trim().toLowerCase();
+    return x !== "" && x === y;
   }
 
   function setColor(id, color){
-    var target = blocks[indexOf(id)];
-    if (!target || target.color === color) return;
-    // Si otro bloque ya tiene ese color, los intercambian.
-    var other = blocks.filter(function(b){ return b.color === color; })[0];
-    if (other) other.color = target.color;
-    target.color = color;
+    var node = buscar(id);
+    if (!node || node.color === color) return;
+
+    // Dos tarjetas de la misma materia pueden compartir color. Con titulos
+    // distintos se intercambian, para que no se confundan entre si.
+    var choque = todos().filter(function(n){
+      return n !== node && n.color === color && !mismoTitulo(n, node);
+    })[0];
+    if (choque) choque.color = node.color;
+
+    node.color = color;
     save();
     render();
   }
 
   function remove(id){
-    if (blocks.length <= 1) return;
-    blocks.splice(indexOf(id), 1);
+    if (todos().length <= 1) return;
+    var node = buscar(id);
+    if (!node) return;
+    var cont = contenedorDe(id);
+    var pos = cont.indexOf(node);
+    // Al borrar un grupo, lo de adentro no se pierde: sube al nivel principal.
+    if (node.kind === "group" && node.children.length) {
+      var sueltos = node.children.slice();
+      cont.splice.apply(cont, [pos, 1].concat(sueltos));
+    } else {
+      cont.splice(pos, 1);
+    }
     save();
     render();
   }
 
-  function add(){
-    var used = blocks.map(function(b){ return b.color; });
-    var free = COLORS.filter(function(c){ return used.indexOf(c) < 0; })[0];
-    blocks.push({
-      id: "b" + Date.now() + "-" + blocks.length,
-      name: "",
-      subject: "",
-      color: free || COLORS[blocks.length % COLORS.length]
-    });
+  function colorLibre(){
+    var usados = todos().map(function(n){ return n.color; });
+    var libre = COLORS.filter(function(c){ return usados.indexOf(c) < 0; })[0];
+    return libre || COLORS[todos().length % COLORS.length];
+  }
+
+  function agregar(kind){
+    var node = nodo(kind, colorLibre());
+    items.push(node);
     save();
     render();
 
-    // El bloque nuevo queda al final: lo mostramos y le damos foco para que
-    // se note que se agrego aunque el boton estuviera al pie de la pantalla.
+    // Lo nuevo queda al final: lo mostramos y le damos foco para que se note
+    // aunque el boton estuviera al pie de la pantalla.
     var el = list.lastElementChild;
     if (!el) return;
     el.classList.add("nuevo");
@@ -363,79 +469,153 @@
     if (input) input.focus();
   }
 
-  /* --- arrastrar y soltar (mouse y touch) --- */
+  /* --- arrastrar y soltar (mouse y dedo) --- */
 
   var drag = null;
+  var placeholder = document.createElement("div");
+  placeholder.className = "placeholder";
 
-  function startDrag(ev, el){
-    if (drag || ev.button === 1 || ev.button === 2) return;
+  function startDrag(ev, el, node){
+    if (drag || (ev.pointerType === "mouse" && ev.button !== 0)) return;
     ev.preventDefault();
 
-    var items = Array.prototype.slice.call(list.children);
-    var rects = items.map(function(item){ return item.getBoundingClientRect(); });
-    var from = items.indexOf(el);
-    var stride = rects.length > 1
-      ? Math.abs(rects[1].top - rects[0].top)
-      : rects[0].height + 12;
+    var rect = el.getBoundingClientRect();
+    drag = {
+      el: el, node: node,
+      startX: ev.clientX, startY: ev.clientY,
+      x: ev.clientX, y: ev.clientY,
+      left: rect.left, top: rect.top
+    };
 
-    drag = { el: el, items: items, from: from, to: from, startY: ev.clientY, stride: stride };
+    placeholder.style.height = rect.height + "px";
+    el.parentNode.insertBefore(placeholder, el);
 
     el.classList.add("dragging");
-    el.setPointerCapture(ev.pointerId);
-    el.addEventListener("pointermove", onDragMove);
-    el.addEventListener("pointerup", endDrag);
-    el.addEventListener("pointercancel", endDrag);
+    el.style.position = "fixed";
+    el.style.width = rect.width + "px";
+    el.style.left = rect.left + "px";
+    el.style.top = rect.top + "px";
+    el.style.margin = "0";
+    document.body.appendChild(el);
+
+    window.addEventListener("pointermove", onDragMove, { passive: false });
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
+    autoScroll();
   }
 
   function onDragMove(ev){
     if (!drag) return;
-    var dy = ev.clientY - drag.startY;
-    drag.el.style.transform = "translateY(" + dy + "px)";
+    ev.preventDefault();
+    drag.x = ev.clientX;
+    drag.y = ev.clientY;
+    drag.el.style.transform = "translate(" + (drag.x - drag.startX) + "px,"
+      + (drag.y - drag.startY) + "px)";
+    ubicarPlaceholder();
+  }
 
-    var to = drag.from + Math.round(dy / drag.stride);
-    to = Math.max(0, Math.min(drag.items.length - 1, to));
-    if (to === drag.to) return;
-    drag.to = to;
+  function ubicarPlaceholder(){
+    var destino = contenedorBajoPuntero(drag.x, drag.y);
+    var hijos = Array.prototype.slice.call(destino.children).filter(function(c){
+      return c.classList.contains("block") && c !== placeholder;
+    });
 
-    drag.items.forEach(function(item, i){
-      if (item === drag.el) return;
-      var shift = 0;
-      if (drag.from < to && i > drag.from && i <= to) shift = -drag.stride;
-      else if (drag.from > to && i < drag.from && i >= to) shift = drag.stride;
-      item.classList.add("settling");
-      item.style.transform = shift ? "translateY(" + shift + "px)" : "";
+    var antes = null;
+    for (var i = 0; i < hijos.length; i++) {
+      var r = hijos[i].getBoundingClientRect();
+      if (drag.y < r.top + r.height / 2) { antes = hijos[i]; break; }
+    }
+    if (placeholder.parentNode !== destino || placeholder.nextSibling !== antes) {
+      // Mover el hueco cambia el alto de lo que hay arriba, asi que el
+      // destino se correria solo debajo del dedo. Compensamos el scroll
+      // para que lo que estas apuntando se quede donde esta.
+      var refEl = destino === list ? (antes || placeholder) : destino;
+      var antesTop = refEl.getBoundingClientRect().top;
+      destino.insertBefore(placeholder, antes);
+      var salto = refEl.getBoundingClientRect().top - antesTop;
+      if (salto) window.scrollBy(0, salto);
+    }
+
+    Array.prototype.forEach.call(document.querySelectorAll(".slot"), function(s){
+      s.classList.toggle("hover", s === destino);
     });
   }
 
-  function endDrag(ev){
+  function dentroDe(el, x, y, margenX, margenY){
+    var r = el.getBoundingClientRect();
+    return x >= r.left - margenX && x <= r.right + margenX
+        && y >= r.top - margenY && y <= r.bottom + margenY;
+  }
+
+  function contenedorBajoPuntero(x, y){
+    // Un grupo no entra dentro de otro grupo: solo las tarjetas sueltas
+    // pueden caer en un hueco.
+    if (drag.node.kind === "group") return list;
+
+    // Salir de un hueco cuesta mas que entrar: sin ese margen, el hueco se
+    // escapa apenas entra la tarjeta y queda entrando y saliendo sola.
+    var actual = placeholder.parentNode;
+    if (actual && actual.classList.contains("slot") && dentroDe(actual, x, y, 24, 30)) {
+      return actual;
+    }
+
+    var slots = document.querySelectorAll(".slot");
+    for (var i = 0; i < slots.length; i++) {
+      if (dentroDe(slots[i], x, y, 0, 8)) return slots[i];
+    }
+    return list;
+  }
+
+  function autoScroll(){
     if (!drag) return;
-    var el = drag.el;
-    el.removeEventListener("pointermove", onDragMove);
-    el.removeEventListener("pointerup", endDrag);
-    el.removeEventListener("pointercancel", endDrag);
-    try { el.releasePointerCapture(ev.pointerId); } catch (e) {}
+    var margen = 90, paso = 0;
+    if (drag.y < margen) paso = -Math.ceil((margen - drag.y) / 6);
+    else if (drag.y > window.innerHeight - margen) paso = Math.ceil((drag.y - (window.innerHeight - margen)) / 6);
+    if (paso) {
+      window.scrollBy(0, paso);
+      ubicarPlaceholder();
+    }
+    requestAnimationFrame(autoScroll);
+  }
 
-    var from = drag.from, to = drag.to;
-    drag.items.forEach(function(item){
-      item.classList.remove("settling");
-      item.style.transform = "";
+  function endDrag(){
+    if (!drag) return;
+    window.removeEventListener("pointermove", onDragMove);
+    window.removeEventListener("pointerup", endDrag);
+    window.removeEventListener("pointercancel", endDrag);
+
+    var destino = placeholder.parentNode || list;
+    var hijos = Array.prototype.slice.call(destino.children).filter(function(c){
+      return c === placeholder || c.classList.contains("block");
     });
-    el.classList.remove("dragging");
-    drag = null;
+    var index = hijos.indexOf(placeholder);
+    var grupoId = destino === list ? null : destino.dataset.groupId;
 
-    if (from !== to) {
-      blocks.splice(to, 0, blocks.splice(from, 1)[0]);
+    var node = sacar(drag.node.id);
+    if (node) {
+      var lista = items;
+      if (grupoId) {
+        var grupo = buscar(grupoId);
+        if (grupo && grupo.children) lista = grupo.children;
+      }
+      if (index < 0 || index > lista.length) index = lista.length;
+      lista.splice(index, 0, node);
       save();
     }
+
+    if (placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+    drag.el.remove();
+    drag = null;
     render();
   }
 
   /* --- arranque --- */
 
-  document.getElementById("add").addEventListener("click", add);
+  document.getElementById("add").addEventListener("click", function(){ agregar("block"); });
+  document.getElementById("addGroup").addEventListener("click", function(){ agregar("group"); });
   document.getElementById("reset").addEventListener("click", function(){
-    if (!confirm("¿Vaciar todos los bloques y volver a los 5 iniciales?")) return;
-    blocks = defaults();
+    if (!confirm("¿Vaciar todo y volver a las 5 tarjetas iniciales?")) return;
+    items = defaults();
     save();
     render();
   });
@@ -448,7 +628,7 @@
     avisar();
   }
 
-  blocks = load();
+  items = load();
   render();
 })();
 </script>
